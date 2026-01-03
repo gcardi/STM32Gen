@@ -7,6 +7,7 @@
 #define DEFAULTTASK_H_
 
 #include "Encoder.h"
+#include "ssd1306.h"
 
 #if defined( __cplusplus )
 extern "C" {
@@ -26,12 +27,28 @@ public:
 	DefaultTask();
 	void Execute();
 private:
-	CntValueType GetFreq() const;
-	CntValueType ResetFreq( CntValueType Value );
+	static constexpr auto FgColor = White;
+	static constexpr auto BgColor = Black;
+
+	enum class Knob {
+		Freq, Ampl
+	};
+
+	Knob selectedKnob_ { Knob::Freq };
+	uint16_t freq_ { 127 };
+	uint8_t ampl_ { 100 };
+
+	//CntValueType GetFreq() const;
+	CntValueType GetKnobValue() const;
 	bool GetBtnState() const;
 	bool GetEncBtnState() const;
-
-
+	void UpdateValueFromSelectedKnob();
+	void UpdateSelectedKnobFromValue();
+	void InitGUI();
+	void UpdateGUI();
+	void NextKnob();
+	bool FreqKnobActive() const;
+	bool AmplKnobActive() const;
 };
 
 #endif

@@ -1,107 +1,160 @@
 /*
  * WaveGenTask.cpp
  *
+ * CMSIS-RTOS2 version
  */
 
 #include <cmath>
 #include <iterator>
+#include <cstdint>
 
 #include "main.h"
 #include "cmsis_os.h"
-#include "WaveGenTask.h"
 #include "WaveGenTask.h"
 
 using std::begin;
 using std::next;
 
+
+// Numero di campioni nella LUT
+constexpr size_t LUT_SIZE = 1024;
+
+// Ampiezza massima int16_t
+constexpr float AMP = 32767.0f;
+
+// Genera la LUT a compile-time
+constexpr int16_t generateSample(size_t i) {
+    return static_cast<int16_t>(AMP * std::sin(M_TWOPI * i / LUT_SIZE));
+}
+
+constexpr auto createSineLUT() {
+    std::array<int16_t,LUT_SIZE> lut = {};
+    for (size_t i = 0; i < LUT_SIZE; ++i) {
+        lut[i] = generateSample(i);
+    }
+    return lut;
+}
+
+// Lut in flash
+constexpr auto SineLUT = createSineLUT();
+
+
 WaveGenTask WaveGen;
 
-void WaveGenTaskExecute( osThreadId_t TaskHandle )
-{
-	WaveGen.Execute( TaskHandle );
-}
 //------------------------------------------------------
-
-void WaveGenTask::SetFreq( uint16_t Val )
+void WaveGenTaskExecute(osThreadId_t TaskHandle)
 {
-	freq_ = Val;
+    WaveGen.Execute(TaskHandle);
 }
+
 //------------------------------------------------------
-
-void WaveGenTask::Execute( osThreadId_t TaskHandle )
+void WaveGenTask::SetFreq(float Val)
 {
-	taskHandle_ = TaskHandle;
-
-	FillBuffer();
-	HAL_I2S_Transmit_DMA( &hi2s2, reinterpret_cast<uint16_t*>( buffer_.data( )), buffer_.size() );
-	for ( ;; ) {
-	    uint32_t flags = osThreadFlagsWait(
-	        0x03,                  // HT | TC
-	        osFlagsWaitAny,
-	        osWaitForever
-	    );
-
-	    if ( flags & 0x02 ) {
-	        // riempi prima metà buffer
-	    	LL_GPIO_SetOutputPin(LED_GPIO_Port, LED_Pin );
-	    	FillHalfBuffer( 0 );
-	    	LL_GPIO_ResetOutputPin(LED_GPIO_Port, LED_Pin );
-	    	//LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-	    	//LL_GPIO_ResetOutputPin(LED_GPIO_Port, LED_Pin );
-	    }
-	    else if (flags & 0x01) {
-	        // riempi seconda metà buffer
-	    	FillHalfBuffer( 1 );
-	    	//LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-	    	//LL_GPIO_SetOutputPin(LED_GPIO_Port, LED_Pin );
-	    }
-	}
+    osKernelLock();    // CMSIS equivalent of critical section
+    freq_ = Val;
+    osKernelUnlock();
 }
-//------------------------------------------------------
 
-void WaveGenTask::FillHalfBuffer( bool FirstHalf )
+//------------------------------------------------------
+void WaveGenTask::SetAmpl(float Val)
 {
-    //float PhaseInc = static_cast<float>( M_TWOPI ) * static_cast<float>( freq_ ) / SampleRate;
-    float PhaseInc = static_cast<float>( M_TWOPI ) * static_cast<float>( freq_ ) / hi2s2.Init.AudioFreq;
-    auto Begin = begin( buffer_ );
-    auto End = next( Begin, buffer_.size() / 2 );
-    if ( !FirstHalf ) {
-    	Begin = End;
-    	End = end( buffer_ );
+    osKernelLock();
+    ampl_ = Val;
+    osKernelUnlock();
+}
+
+//------------------------------------------------------
+#define AUDIO_HT (1 << 0)
+#define AUDIO_TC (1 << 1)
+
+// Global task handle for ISR
+osThreadId_t gTaskHandle;
+
+//------------------------------------------------------
+void WaveGenTask::Execute(osThreadId_t TaskHandle)
+{
+    gTaskHandle = TaskHandle;
+
+    FillBuffer();
+    HAL_I2S_Transmit_DMA(&hi2s2, reinterpret_cast<uint16_t*>(buffer_.data()), buffer_.size());
+
+    for (;;) {
+        // Attende le flag DMA: metà buffer o buffer completo
+        uint32_t flags = osThreadFlagsWait(
+            AUDIO_HT | AUDIO_TC,  // bits to wait
+            osFlagsWaitAny,
+            osWaitForever         // blocca finché non arriva notifica
+        );
+
+        // Gestione notifiche
+        if (flags & AUDIO_HT) {
+            FillHalfBuffer(true);
+        }
+
+        if (flags & AUDIO_TC) {
+            FillHalfBuffer(false);
+        }
+
+        // Dorme per lasciare spazio ai task a priorità più bassa
+        //osDelay(5); // 5 ms, puoi regolare
     }
-    while ( Begin != End ) {
-        auto fn = sinf( phase_ );
-        auto Sample = static_cast<BufferType::value_type>( fn * 32767.0f );
-        *Begin++ = Sample;
-        if ( Begin != End ) {
+}
+
+//------------------------------------------------------
+
+void WaveGenTask::FillHalfBuffer(bool FirstHalf)
+{
+	float Freq;
+    float Ampl;
+
+    osKernelLock();
+    Freq = freq_;
+    Ampl = ampl_;
+    osKernelUnlock();
+
+    float PhaseInc = Freq / hi2s2.Init.AudioFreq;
+
+    auto Begin = begin(buffer_);
+    auto End = next(Begin, buffer_.size() / 2);
+
+    if (!FirstHalf) {
+        Begin = End;
+        End = end(buffer_);
+    }
+
+    while (Begin != End) {
+	    auto idx = static_cast<size_t>( phase_ * LUT_SIZE ) % LUT_SIZE;
+	    auto Sample = Ampl * Ampl * SineLUT[idx];
+	    *Begin++ = Sample;
+        if (Begin != End) {
             *Begin++ = Sample;
         }
-        phase_ += PhaseInc;
-        if ( phase_ >= 2.0f * M_PI ) {
-            phase_ -= 2.0f * M_PI;
-        }
+	    phase_ += PhaseInc;
+	    if ( phase_ >= 1.0f ) phase_ -= 1.0f;
     }
 }
-//------------------------------------------------------
 
+//------------------------------------------------------
 void WaveGenTask::FillBuffer()
 {
-    printf( "AudioFreq=%d\r\n", hi2s2.Init.AudioFreq );
-	FillHalfBuffer( true );
-	FillHalfBuffer( false );
+    printf("AudioFreq=%lu\r\n", hi2s2.Init.AudioFreq);
+    FillHalfBuffer(true);
+    FillHalfBuffer(false);
 }
+
 //------------------------------------------------------
 
 void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s)
 {
-	//LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    osThreadFlagsSet( WaveGen.GetTaskHandle(), 1 );
+    // Notifica il task audio dalla ISR per metà buffer completo
+	osThreadFlagsSet(gTaskHandle, AUDIO_HT);
 }
-//------------------------------------------------------
 
+//------------------------------------------------------
 void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s)
 {
-	//LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    osThreadFlagsSet( WaveGen.GetTaskHandle(), 2 );
+    // Notifica il task audio dalla ISR per fine buffer completo
+	osThreadFlagsSet(gTaskHandle, AUDIO_TC);
 }
+
 //------------------------------------------------------

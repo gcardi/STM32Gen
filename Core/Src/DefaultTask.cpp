@@ -33,15 +33,9 @@ DefaultTask::DefaultTask()
 }
 //------------------------------------------------------
 
-DefaultTask::CntValueType DefaultTask::GetFreq() const
+DefaultTask::CntValueType DefaultTask::GetKnobValue() const
 {
-	return Encs.GetChn<0>();
-}
-//------------------------------------------------------
-
-DefaultTask::CntValueType DefaultTask::ResetFreq( CntValueType Value )
-{
-	return Encs.SetChn<0>( Value );
+	return Encs.GetChn();
 }
 //------------------------------------------------------
 
@@ -66,47 +60,122 @@ static void DbgShowFreq( auto Val )
 
 void DefaultTask::Execute()
 {
-	auto constexpr FgColor = White;
-	auto constexpr BgColor = Black;
-
-	static char Text[60];
-
-	ResetFreq( 127 );
-
 	Encs.Init( ReadEncodersPort() );
 
-	auto OldFreq = GetFreq();
+	UpdateSelectedKnobFromValue();
 
-	//DbgShowFreq( OldFreq );
+	InitGUI();
 
-	ssd1306_Fill( BgColor );
-	ssd1306_UpdateScreen();
+	enum class FState { Idle, Tg };
 
-	/* Infinite loop */
-	for(uint32_t i {}; ; ++i ) {
-		/*
-		ssd1306_SetCursor( 0, 0 );
-		sprintf( Text, "%08lX", i );
-		ssd1306_WriteString( Text, Font_11x18, FgColor );
-		ssd1306_UpdateScreen();
-		*/
-		if ( Encs.Update( 16 ) ) {
-			auto Freq = GetFreq();
-			if ( OldFreq != Freq ) {
-				OldFreq = Freq;
-				WaveGen.SetFreq( OldFreq );
-				//DbgShowFreq( OldFreq );
-				ssd1306_SetCursor( 0, 0 );
-				sprintf( Text, "%4d", OldFreq );
-				ssd1306_WriteString( Text, Font_11x18, FgColor );
-				ssd1306_UpdateScreen();
+	FState State = FState::Idle;
+
+	for ( size_t x {} ; ; ++x ) {
+		if ( Encs.Update( 32 ) ) {
+			UpdateValueFromSelectedKnob();
+
+			if ( ~( x & 15 ) ) {
+			    UpdateGUI();
 			}
-			//LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 		}
-		taskYIELD();
+		//vTaskDelay( pdMS_TO_TICKS( 10 ) );
+		switch ( State ) {
+			case FState::Idle:
+				if ( GetBtnState() ) {
+					NextKnob();
+					UpdateSelectedKnobFromValue();
+					UpdateGUI();
+			    	State = FState::Tg;
+				}
+				break;
+			case FState::Tg:
+				if ( !GetBtnState() ) {
+			    	State = FState::Idle;
+				}
+				break;
+		}
+
+	}
+}
+//------------------------------------------------------
+
+void DefaultTask::UpdateValueFromSelectedKnob()
+{
+	switch ( selectedKnob_ ) {
+		case Knob::Freq:
+			freq_ = static_cast<uint16_t>( GetKnobValue() );
+			WaveGen.SetFreq( freq_ );
+			break;
+		case Knob::Ampl:
+			ampl_ = static_cast<uint8_t>( GetKnobValue() );
+			WaveGen.SetAmpl( ampl_ / 100.0F );
+			break;
+	}
+}
+//------------------------------------------------------
+
+void DefaultTask::UpdateSelectedKnobFromValue()
+{
+	switch ( selectedKnob_ ) {
+		case Knob::Freq:
+			Encs.SetChn( freq_, 10, 1000 );
+			break;
+		case Knob::Ampl:
+			Encs.SetChn( ampl_, 0, 100 );
+			break;
+	}
+}
+//------------------------------------------------------
+
+void DefaultTask::InitGUI()
+{
+	ssd1306_Fill( BgColor );
+	UpdateGUI();
+}
+//------------------------------------------------------
+
+bool DefaultTask::FreqKnobActive() const
+{
+	return selectedKnob_ == Knob::Freq;
+}
+//------------------------------------------------------
+
+bool DefaultTask::AmplKnobActive() const
+{
+	return selectedKnob_ == Knob::Ampl;
+}
+//------------------------------------------------------
+
+void DefaultTask::UpdateGUI()
+{
+	char Text[32];
+
+	ssd1306_SetCursor( 0, 0 );
+	sprintf( Text, FreqKnobActive() ? ">F:%4u Hz" : " F:%4u Hz", freq_ );
+	ssd1306_WriteString( Text, Font_11x18, FgColor );
+
+	ssd1306_SetCursor( 0, 20 );
+	sprintf( Text, AmplKnobActive() ? ">A: %3d%%" : " A: %3d%%", static_cast<int>( ampl_ ) );
+	ssd1306_WriteString( Text, Font_11x18, FgColor );
+
+
+//	ssd1306_SetCursor( 0, 40 );
+//	ssd1306_WriteString( "    ^", Font_11x18, FgColor );
+
+	ssd1306_UpdateScreen();
+}
+//------------------------------------------------------
+
+void DefaultTask::NextKnob()
+{
+	switch ( selectedKnob_ ) {
+		case Knob::Freq:
+			selectedKnob_ = Knob::Ampl;
+			break;
+		case Knob::Ampl:
+			selectedKnob_ = Knob::Freq;
+			break;
 	}
 
 }
 //------------------------------------------------------
-
-

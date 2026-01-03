@@ -23,23 +23,23 @@ public:
 	using SampleType = int16_t;
 
 	void Execute( osThreadId_t TaskHandle );
-	osThreadId_t GetTaskHandle() const { return taskHandle_; }
-	uint16_t GetFreq() const { return freq_; }
-	void SetFreq( uint16_t Val );
+	float GetFreq() const { return freq_; }
+	void SetFreq( float Val );
+	float GetAmpl() const { return freq_; }
+	void SetAmpl( float Val );
 private:
 	static constexpr size_t SampleCount = 2048;
 	static constexpr size_t ChnCount = 2;
 	static constexpr size_t BufferSize = SampleCount * ChnCount;
-	//static constexpr float SampleRate = 40000.0F;
 	float sampleRate_ {};
 
 	using BufferType = std::array<SampleType,BufferSize>;
 
-	osThreadId_t taskHandle_;
+	//osThreadId_t taskHandle_;
 	BufferType buffer_;
-    //float phase_ {};
 	float phase_;
-	volatile uint16_t freq_ { 127 };
+	float freq_ { 127.0F };
+	float ampl_ { 1.0F };
 
 	void FillHalfBuffer( bool FirstHalf );
 	void FillBuffer();

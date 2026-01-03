@@ -43,14 +43,7 @@ bool Encoders::ProcessPort( ValEvtType Val )
 
 void Encoders::ProcessDeltas( ValEvtType Val )
 {
-	ProcessChn<0>( oldPort_, Val );
-	/*
-	ProcessChn<1>( oldPort_, Val );
-	ProcessChn<2>( oldPort_, Val );
-	ProcessChn<3>( oldPort_, Val );
-	ProcessChn<4>( oldPort_, Val );
-	*/
-	//btns_.set( 5, Val & 0x8000 );
+	ProcessChn( oldPort_, Val );
 }
 //-------------------------------------------------------------------------
 

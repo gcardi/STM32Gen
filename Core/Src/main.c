@@ -56,7 +56,7 @@ UART_HandleTypeDef huart1;
 
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
-uint32_t defaultTaskBuffer[ 128 ];
+uint32_t defaultTaskBuffer[ 512 ];
 osStaticThreadDef_t defaultTaskControlBlock;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
@@ -68,7 +68,7 @@ const osThreadAttr_t defaultTask_attributes = {
 };
 /* Definitions for waveGenTask */
 osThreadId_t waveGenTaskHandle;
-uint32_t waveGenTaskBuffer[ 128 ];
+uint32_t waveGenTaskBuffer[ 512 ];
 osStaticThreadDef_t waveGenTaskControlBlock;
 const osThreadAttr_t waveGenTask_attributes = {
   .name = "waveGenTask",
@@ -76,7 +76,7 @@ const osThreadAttr_t waveGenTask_attributes = {
   .cb_size = sizeof(waveGenTaskControlBlock),
   .stack_mem = &waveGenTaskBuffer[0],
   .stack_size = sizeof(waveGenTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* USER CODE BEGIN PV */
 
@@ -295,7 +295,7 @@ static void MX_I2S2_Init(void)
   hi2s2.Init.Standard = I2S_STANDARD_PHILIPS;
   hi2s2.Init.DataFormat = I2S_DATAFORMAT_16B;
   hi2s2.Init.MCLKOutput = I2S_MCLKOUTPUT_DISABLE;
-  hi2s2.Init.AudioFreq = 24000;
+  hi2s2.Init.AudioFreq = 40000;
   hi2s2.Init.CPOL = I2S_CPOL_LOW;
   hi2s2.Init.ClockSource = I2S_CLOCK_PLL;
   hi2s2.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_DISABLE;

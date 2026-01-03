@@ -19,14 +19,11 @@ public:
 
 	static constexpr auto Scale = 2;
 
-	Encoders() {
-		ClampChns();
-	}
+	Encoders() = default;
 
 	Encoders( ValEvtType InitialPortValue )
 	  : oldPort_{ InitialPortValue }
 	{
-		ClampChns();
 	}
 
 	void Init( ValEvtType InitialPortValue = {} ) {
@@ -41,36 +38,35 @@ public:
 	bool Update( size_t EventCnt );
 
 
-	template<size_t N>
 	constexpr CntValueType GetChn() const {
-		static_assert( N < MaxChns );
-		return chns_[N] >> Scale;
+		return value_ >> Scale;
 	}
 
 	CntValueType GetChn( size_t Idx ) const {
-		return chns_[Idx] >> Scale;
+		return value_ >> Scale;
 	}
 
-	template<size_t N>
-	constexpr CntValueType SetChn( CntValueType Val ) {
-		static_assert( N < MaxChns );
-		chns_[N] = Clamp( Val << Scale );
-		return chns_[N] >> Scale;
+	constexpr CntValueType SetChn( CntValueType Val, CntValueType Min, CntValueType Max ) {
+		min_ = Min;
+		max_ = Max;
+		value_ = Clamp( Val << Scale );
+		return value_ >> Scale;
 	}
 
-	CntValueType SetChn( size_t Idx, CntValueType Val ) {
-		chns_[Idx] = Clamp( Val << Scale );
-		return chns_[Idx] >> Scale;
-	}
+	CntValueType GetInc10Exp() const { return factor_; }
+	void SetInc10Exp( CntValueType Val ) { factor_ = Val; }
 
 private:
-	RingBuffer<ValEvtType,64> buffer_;
+	RingBuffer<ValEvtType,128> buffer_;
 
 	ValEvtType oldPort_ {};
 
 	static constexpr size_t MaxChns = 8;
 
-	std::array<CntValueType,MaxChns> chns_ = {0};
+	CntValueType value_ {};
+	CntValueType min_ {};
+	CntValueType max_ {};
+	CntValueType factor_ { 0 };
 
 	[[nodiscard]]
 	bool ProcessPort( ValEvtType Val );
@@ -81,21 +77,14 @@ private:
 	constexpr CntValueType Clamp( CntValueType Val ) const {
 		return std::clamp(
 		    Val,
-			static_cast<CntValueType>( 10 << Scale ),
-			static_cast<CntValueType>( 150 << Scale )
+			static_cast<CntValueType>( min_ << Scale ),
+			static_cast<CntValueType>( max_ << Scale )
 		);
-	}
-
-	void ClampChns() {
-		for ( auto& Chn : chns_ ) {
-			Chn = Clamp( Chn );
-		}
 	}
 
 	template<typename T, size_t N>
 	using SquaredMatrix = std::array<std::array<T, N>, N>;
 
-	template<size_t S>
 	inline void ProcessChn( ValEvtType Old, ValEvtType New )
 	{
 		static constexpr SquaredMatrix<int8_t, 4> Delta = {{
@@ -105,17 +94,21 @@ private:
 			{{  0, -1, +1,  0 }},
 		}};
 
+		static constexpr std::array<CntValueType,4> Pow10 {{
+			1, 10, 100, 1000
+		}};
+
 		static constexpr auto NBits = 2;
 		static constexpr auto BitMask = ( 1 << ( NBits + 1 ) ) - 1;
 		static constexpr auto FirstBitAt = 0;
+		static constexpr auto StartBitPair = 0;
 
-		//auto OldIdx = ( Old >> ( S * NBits + FirstBitAt) ) & BitMask;
-		//auto NewIdx = ( New >> ( S * NBits + FirstBitAt ) ) & BitMask;
 		auto DVal =
-			Delta[( Old >> ( S * NBits + FirstBitAt) ) & BitMask]
-				 [( New >> ( S * NBits + FirstBitAt) ) & BitMask];
-		chns_[S] = Clamp( chns_[S] + DVal );
-		//printf( "\r\nO=%d\tN=%d\tD=%d\tV=%d", (int)( Old & BitMask ), (int)(New & BitMask), (int)DVal, (int)( chns_[S] >> 2 ) );
+			Delta[( Old >> ( StartBitPair * NBits + FirstBitAt) ) & BitMask]
+				 [( New >> ( StartBitPair * NBits + FirstBitAt) ) & BitMask];
+		value_ = Clamp( value_ + DVal );
+		//value_ = Clamp( value_ + DVal * Pow10[ std::clamp( factor_, 0, Pow10.size() -1 ) ] );
+		//printf( "\r\nO=%d\tN=%d\tD=%d\tV=%d", (int)( Old & BitMask ), (int)(New & BitMask), (int)DVal, (int)( value_ >> 2 ) );
 		//fflush( stdout );
 	}
 };
