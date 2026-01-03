@@ -61,7 +61,8 @@ void WaveGenTask::Execute( osThreadId_t TaskHandle )
 
 void WaveGenTask::FillHalfBuffer( bool FirstHalf )
 {
-    float PhaseInc = static_cast<float>( M_TWOPI ) * static_cast<float>( freq_ ) / SampleRate;
+    //float PhaseInc = static_cast<float>( M_TWOPI ) * static_cast<float>( freq_ ) / SampleRate;
+    float PhaseInc = static_cast<float>( M_TWOPI ) * static_cast<float>( freq_ ) / hi2s2.Init.AudioFreq;
     auto Begin = begin( buffer_ );
     auto End = next( Begin, buffer_.size() / 2 );
     if ( !FirstHalf ) {
@@ -85,6 +86,7 @@ void WaveGenTask::FillHalfBuffer( bool FirstHalf )
 
 void WaveGenTask::FillBuffer()
 {
+    printf( "AudioFreq=%d\r\n", hi2s2.Init.AudioFreq );
 	FillHalfBuffer( true );
 	FillHalfBuffer( false );
 }

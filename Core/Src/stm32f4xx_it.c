@@ -171,14 +171,15 @@ void DebugMon_Handler(void)
 void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
+  ProcessEncoders( ReadEncodersPort() );
 
   /* USER CODE END EXTI0_IRQn 0 */
   if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_0) != RESET)
   {
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_0);
     /* USER CODE BEGIN LL_EXTI_LINE_0 */
-    uint32_t EncPort = ReadEncodersPort();
-    ProcessEncoders( EncPort );
+    //uint32_t EncPort = ReadEncodersPort();
+    //ProcessEncoders( EncPort );
     /* USER CODE END LL_EXTI_LINE_0 */
   }
   /* USER CODE BEGIN EXTI0_IRQn 1 */
@@ -192,14 +193,15 @@ void EXTI0_IRQHandler(void)
 void EXTI1_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI1_IRQn 0 */
+  ProcessEncoders( ReadEncodersPort() );
 
   /* USER CODE END EXTI1_IRQn 0 */
   if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_1) != RESET)
   {
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_1);
     /* USER CODE BEGIN LL_EXTI_LINE_1 */
-    uint32_t EncPort = ReadEncodersPort();
-    ProcessEncoders( EncPort );
+    //uint32_t EncPort = ReadEncodersPort();
+    //ProcessEncoders( EncPort );
     /* USER CODE END LL_EXTI_LINE_1 */
   }
   /* USER CODE BEGIN EXTI1_IRQn 1 */

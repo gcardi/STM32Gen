@@ -30,7 +30,8 @@ private:
 	static constexpr size_t SampleCount = 2048;
 	static constexpr size_t ChnCount = 2;
 	static constexpr size_t BufferSize = SampleCount * ChnCount;
-	static constexpr float SampleRate = 20000.0F;
+	//static constexpr float SampleRate = 40000.0F;
+	float sampleRate_ {};
 
 	using BufferType = std::array<SampleType,BufferSize>;
 

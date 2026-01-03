@@ -111,11 +111,12 @@ private:
 
 		//auto OldIdx = ( Old >> ( S * NBits + FirstBitAt) ) & BitMask;
 		//auto NewIdx = ( New >> ( S * NBits + FirstBitAt ) ) & BitMask;
-
 		auto DVal =
 			Delta[( Old >> ( S * NBits + FirstBitAt) ) & BitMask]
 				 [( New >> ( S * NBits + FirstBitAt) ) & BitMask];
 		chns_[S] = Clamp( chns_[S] + DVal );
+		//printf( "\r\nO=%d\tN=%d\tD=%d\tV=%d", (int)( Old & BitMask ), (int)(New & BitMask), (int)DVal, (int)( chns_[S] >> 2 ) );
+		//fflush( stdout );
 	}
 };
 

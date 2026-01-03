@@ -30,6 +30,8 @@ private:
 	CntValueType ResetFreq( CntValueType Value );
 	bool GetBtnState() const;
 	bool GetEncBtnState() const;
+
+
 };
 
 #endif

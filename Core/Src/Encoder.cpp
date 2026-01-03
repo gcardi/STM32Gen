@@ -25,7 +25,6 @@ bool Encoders::Update( size_t EventCnt )
 		if ( ProcessPort( Data ) ) {
 			++ProcCnt;
 		}
-		//printf( "%08lX\r\n", Data );
 	}
 	return ProcCnt;
 }
