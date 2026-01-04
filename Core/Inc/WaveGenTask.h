@@ -39,13 +39,17 @@ private:
 	BufferType buffer_;
 	float phase_;
 	float freq_ { 127.0F };
-	float ampl_ { 1.0F };
+	float ampl_ {};
 
 	void FillHalfBuffer( bool FirstHalf );
 	void FillBuffer();
 };
 
 extern WaveGenTask WaveGen;
+extern bool GetRunCmdState();
+//------------------------------------------------------
+
+
 
 #endif
 

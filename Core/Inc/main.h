@@ -47,6 +47,7 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 extern I2S_HandleTypeDef hi2s2;
+extern I2C_HandleTypeDef hi2c3;
 
 /* USER CODE END ET */
 
@@ -77,6 +78,8 @@ void Error_Handler(void);
 #define ENC_B_Pin LL_GPIO_PIN_1
 #define ENC_B_GPIO_Port GPIOA
 #define ENC_B_EXTI_IRQn EXTI1_IRQn
+#define RUN_Pin LL_GPIO_PIN_0
+#define RUN_GPIO_Port GPIOB
 #define ENC_PB_Pin LL_GPIO_PIN_2
 #define ENC_PB_GPIO_Port GPIOB
 

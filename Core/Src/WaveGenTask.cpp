@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iterator>
 #include <cstdint>
+#include <cstring>
 
 #include "main.h"
 #include "cmsis_os.h"
@@ -17,7 +18,7 @@ using std::next;
 
 
 // Numero di campioni nella LUT
-constexpr size_t LUT_SIZE = 1024;
+constexpr size_t LUT_SIZE = 4096;
 
 // Ampiezza massima int16_t
 constexpr float AMP = 32767.0f;
@@ -112,32 +113,40 @@ void WaveGenTask::FillHalfBuffer(bool FirstHalf)
     Ampl = ampl_;
     osKernelUnlock();
 
-    float PhaseInc = Freq / hi2s2.Init.AudioFreq;
+	float PhaseInc = Freq / hi2s2.Init.AudioFreq;
 
-    auto Begin = begin(buffer_);
-    auto End = next(Begin, buffer_.size() / 2);
+	auto Begin = begin(buffer_);
+	auto End = next(Begin, buffer_.size() / 2);
 
-    if (!FirstHalf) {
-        Begin = End;
-        End = end(buffer_);
+	if (!FirstHalf) {
+		Begin = End;
+		End = end(buffer_);
+	}
+
+    if ( GetRunCmdState() ) {
+		while (Begin != End) {
+			auto idx = static_cast<size_t>( phase_ * LUT_SIZE ) % LUT_SIZE;
+			auto Sample = Ampl * SineLUT[idx];
+			*Begin++ = Sample;
+			if (Begin != End) {
+				*Begin++ = Sample;
+			}
+			phase_ += PhaseInc;
+			if ( phase_ >= 1.0f ) phase_ -= 1.0f;
+		}
     }
-
-    while (Begin != End) {
-	    auto idx = static_cast<size_t>( phase_ * LUT_SIZE ) % LUT_SIZE;
-	    auto Sample = Ampl * Ampl * SineLUT[idx];
-	    *Begin++ = Sample;
-        if (Begin != End) {
-            *Begin++ = Sample;
-        }
-	    phase_ += PhaseInc;
-	    if ( phase_ >= 1.0f ) phase_ -= 1.0f;
+    else {
+		while (Begin != End) {
+			*Begin++ = {};
+		}
     }
 }
 
 //------------------------------------------------------
+
 void WaveGenTask::FillBuffer()
 {
-    printf("AudioFreq=%lu\r\n", hi2s2.Init.AudioFreq);
+    //printf("AudioFreq=%lu\r\n", hi2s2.Init.AudioFreq);
     FillHalfBuffer(true);
     FillHalfBuffer(false);
 }

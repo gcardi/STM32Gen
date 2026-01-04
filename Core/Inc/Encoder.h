@@ -14,7 +14,7 @@ class Encoders {
 public:
 	//using ValEvtType = uint8_t;
 	using ValEvtType = uint32_t;
-	using CntValueType = int16_t;
+	using CntValueType = int32_t;
 	using CntRefType = CntValueType&;
 
 	static constexpr auto Scale = 2;
@@ -53,8 +53,8 @@ public:
 		return value_ >> Scale;
 	}
 
-	CntValueType GetInc10Exp() const { return factor_; }
-	void SetInc10Exp( CntValueType Val ) { factor_ = Val; }
+	CntValueType GetIncFactIdx() const { return incFactIdx_; }
+	void SetIncFactIdx( CntValueType Val ) { incFactIdx_ = Val; }
 
 private:
 	RingBuffer<ValEvtType,128> buffer_;
@@ -66,7 +66,7 @@ private:
 	CntValueType value_ {};
 	CntValueType min_ {};
 	CntValueType max_ {};
-	CntValueType factor_ { 0 };
+	CntValueType incFactIdx_ { 0 };
 
 	[[nodiscard]]
 	bool ProcessPort( ValEvtType Val );
@@ -94,8 +94,8 @@ private:
 			{{  0, -1, +1,  0 }},
 		}};
 
-		static constexpr std::array<CntValueType,4> Pow10 {{
-			1, 10, 100, 1000
+		static constexpr std::array<CntValueType,3> DeltaVal {{
+			1, 8, 100
 		}};
 
 		static constexpr auto NBits = 2;
@@ -106,10 +106,29 @@ private:
 		auto DVal =
 			Delta[( Old >> ( StartBitPair * NBits + FirstBitAt) ) & BitMask]
 				 [( New >> ( StartBitPair * NBits + FirstBitAt) ) & BitMask];
-		value_ = Clamp( value_ + DVal );
-		//value_ = Clamp( value_ + DVal * Pow10[ std::clamp( factor_, 0, Pow10.size() -1 ) ] );
-		//printf( "\r\nO=%d\tN=%d\tD=%d\tV=%d", (int)( Old & BitMask ), (int)(New & BitMask), (int)DVal, (int)( value_ >> 2 ) );
-		//fflush( stdout );
+		//value_ = Clamp( value_ + DVal );
+		if ( DVal ) {
+			auto DeltaIdx = std::clamp( incFactIdx_, CntValueType{}, static_cast<CntValueType>( DeltaVal.size() ) );
+			value_ = Clamp( value_ + DVal * DeltaVal[DeltaIdx] );
+			/*
+			switch ( incFactIdx_ ) {
+				case 1:
+					//value_ = Clamp( value_ + DVal * 10 );
+					value_ += DVal * 8;
+					value_ = Clamp( value_ );
+					break;
+				case 2:
+					value_ = Clamp( value_ + DVal * 100 );
+					break;
+				default:
+					value_ = Clamp( value_ + DVal );
+					break;
+
+			}
+			printf( "\r\nO=%d\tN=%d\tD=%d\tPV=%d\tV=%d", (int)( Old & BitMask ), (int)(New & BitMask), (int)DVal, (int)value_, (int)( value_ >> 2 ) );
+			fflush( stdout );
+			*/
+		}
 	}
 };
 
